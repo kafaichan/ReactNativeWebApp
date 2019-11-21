@@ -1,230 +1,216 @@
-import React, { Component } from 'react';
+import React, { Component } from 'react'
+import Card from './Card'
 import {
   SafeAreaView,
+  StatusBar,
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
-  StatusBar,
-  Animated,
-  Dimensions,
-  Vibration
+  TouchableOpacity,
+  Dimensions
 } from 'react-native'
 
-var Sound=require('react-native-sound')
-
 class App extends Component {
-  state = {
-    corrects: 0,
-    currentIndex: 0,
-    isDisabled: false,
-    buttonClass: [
-      {}, {}, {}, {}
-    ],
-    statusBarWidth: new Animated.Value(1),
-      sounds: {
-        correct: null,
-        incorrect: null,
-    },
-    topics: [
-      {
-        question: 'JavaScript 與 Java 有什麼關係？',
-        answers: [
-          {
-            value: '同公司的產品',
-            correct: false,
-          },
-          {
-            value: '新版與舊版的關係',
-            correct: false,
-          },
-          {
-            value: '一點關係也沒有',
-            correct: true,
-          },
-          {
-            value: 'JavaScript 是 Java 的 Web 版本',
-            correct: false,
-          },
-        ]
-      },
-      {
-        question: '發明 React JS 的公司是？',
-        answers: [
-          {
-            value: 'Google',
-            correct: false,
-          },
-          {
-            value: 'Facebook',
-            correct: true,
-          },
-          {
-            value: 'Apple',
-            correct: false,
-          },
-          {
-            value: 'Microsoft',
-            correct: false,
-          },
-        ]
-      }
-    ]
-  }
-
-  next = (index, correct) => {
-    // 1.
-    if (correct) {
-      this.setState({
-        corrects: this.state.corrects + 1,
-      })
-      this.state.sounds.correct.play()
-    }else {
-    	this.state.sounds.incorrect.play()
-    	Vibration.vibrate(500)
-    }
-
-    this.setState({
-      isDisabled: true,
-    })
-
-    // 2.
-    let newButtonClass = [...this.state.buttonClass]
-    newButtonClass[index] = (correct) ? {backgroundColor: '#4FFF87'} : {backgroundColor: '#FF7056'}
-    this.setState({
-      buttonClass: newButtonClass
-    })
-
-    // 3
-    setTimeout(() => {
-      Animated.timing(this.state.statusBarWidth, {
-        toValue: (this.state.currentIndex + 1) / this.state.topics.length * 100,
-        duration: 500,
-      }).start()
-
-      this.setState({
-        currentIndex: this.state.currentIndex + 1,
-        buttonClass: ['', '', '', ''],
-        isDisabled: false,
-      })
-    }, 1500)
-  }
-
-  startOver = () => {
-    this.setState({
-      corrects: 0,
-      currentIndex: 0,
-      buttonClass: [
-        {}, {}, {}, {}
-      ],
-      statusBarWidth: new Animated.Value(1),
-    })
-  }
-
-componentDidMount() {
-  let correct = new Sound('correct.mp3', Sound.MAIN_BUNDLE, (error) => {
-    if (error) {
-      console.log('failed to load the sound', error);
-      return;
-    }
-  });
-
-  let incorrect = new Sound('incorrect.mp3', Sound.MAIN_BUNDLE, (error) => {
-    if (error) {
-      console.log('failed to load the sound', error);
-      return;
-    }
-  });
-
-  this.setState({
-    sounds: {
-      correct: correct,
-      incorrect: incorrect,
-    }
-  })
-}
   render() {
-    const width = this.state.statusBarWidth.interpolate({
-      inputRange: [0, 100],
-      outputRange: [0, Dimensions.get('window').width],
+  state = {
+    cardSymbols: [
+      '☺️', '🤩', '😎', '💩', '❤️', '⭐️', '🤘', '👍'
+    ],
+    cardSymbolsInRand: [],
+    cardSymbolsInRand: [],
+    isOpen: [], 
+    firstPickedIndex: null,
+    secondPickedIndex: null,
+    steps: 0,
+    isEnded: false,   
+  }
+
+  componentDidMount() {
+    // Duplicate Symbols x 2
+    let newCardSymbols = [...this.state.cardSymbols, ...this.state.cardSymbols]
+    let cardSymbolsInRand = this.shuffleArray(newCardSymbols)
+
+ // Init isOpen Array according to the length of symbol array
+  let isOpen = []
+  for (let i = 0; i < newCardSymbols.length; i++) {
+    isOpen.push(false)
+  }
+   this.setState({
+      cardSymbolsInRand: cardSymbolsInRand,
+      isOpen: isOpen,
     })
+  }
 
+   cardPressHandler = (index) => {
+let newIsOpen = [...this.state.isOpen]
+
+  // Check if the picked one is already picked
+  if (newIsOpen[index]) {
+    return;
+  }
+newIsOpen[index] = true
+ // Check the current game flow
+ if (this.state.firstPickedIndex == null && this.state.secondPickedIndex == null) {
+   // First Choice
+   this.setState({
+     isOpen: newIsOpen,
+     firstPickedIndex: index,
+   })
+ } else if (this.state.firstPickedIndex != null && this.state.secondPickedIndex == null) {
+   // Second Choice
+   this.setState({
+     isOpen: newIsOpen,
+     secondPickedIndex: index,
+     steps: this.state.steps + 1
+   })
+ }
+ }
+
+ calculateGameResult = () => {
+   if (this.state.firstPickedIndex != null && this.state.secondPickedIndex != null) {
+    // Calculate if the game is ended
+    if (this.state.cardSymbolsInRand.length > 0) {
+      let totalOpens = this.state.isOpen.filter((isOpen) => isOpen)
+      if (totalOpens.length == this.state.cardSymbolsInRand.length) {
+        this.setState({
+          isEnded: true,
+        })
+        return
+      }
+
+     // Determind if two card are the same
+     let firstSymbol = this.state.cardSymbolsInRand[this.state.firstPickedIndex]
+     let secondSymbol = this.state.cardSymbolsInRand[this.state.secondPickedIndex]
+ 
+     if (firstSymbol != secondSymbol) {
+       // Incorrect, uncover soon
+       setTimeout(() => {
+         let newIsOpen = [...this.state.isOpen]
+         newIsOpen[this.state.firstPickedIndex] = false
+         newIsOpen[this.state.secondPickedIndex] = false
+ 
+         this.setState({
+           firstPickedIndex: null,
+           secondPickedIndex: null,
+           isOpen: newIsOpen
+         })
+       }, 1000)
+     } else {
+       // Correct
+       this.setState({
+         firstPickedIndex: null,
+         secondPickedIndex: null,
+       })
+     }
+   }
+ }
+
+ componentDidUpdate(prevProps, prevState) {
+   if (prevState.secondPickedIndex != this.state.secondPickedIndex) {
+     this.calculateGameResult()
+   }
+ }
+
+  shuffleArray = (arr) => {
+    const newArr = arr.slice()
+    for (let i = newArr.length - 1; i > 0; i--) {
+      const rand = Math.floor(Math.random() * (i + 1));
+      [newArr[i], newArr[rand]] = [newArr[rand], newArr[i]];
+    }
+    return newArr
+  }
     return (
-      <View style={ styles.App }>
-        <Animated.View style={ {...styles.statusBar, width: width} }></Animated.View>
-
-        {this.state.currentIndex < this.state.topics.length ?
-          (
-            <View style={ styles.topicsContainer }>
-              <Text style={ styles.question }>{ this.state.topics[this.state.currentIndex].question }</Text>
-
-              {this.state.topics[this.state.currentIndex].answers.map((answer, index) => {
-                return (
-                  <TouchableOpacity key={index} style={ {...styles.button, ...this.state.buttonClass[index]} } onPress={() => this.next(index, answer.correct)}>
-                    <Text style={ styles.answer }>{answer.value}</Text>
-                  </TouchableOpacity>
-                )
-              })}
+      <>
+        <StatusBar />
+        <SafeAreaView style={ styles.container }>
+          <View style={ styles.header }>
+            <Text style={ styles.heading }>
+              Matching Game
+            </Text>
+           </View>
+            <View style={ styles.main }>  
+              <View style={ styles.gameBoard }>
+ {this.state.cardSymbolsInRand.map((symbol, index) => 
+<Card key={index} style={ styles.button } onPress={ () => this.cardPressHandler(index) } fontSize={30} title={symbol} cover="❓" isShow={this.state.isOpen[index]}></Card>
+ )}
+              </View>
             </View>
-          ) : (
-            <View style={ styles.result }>
-              <Text style={ styles.resultTitle }>Completed!</Text>
-              <Text style={ styles.score }>Your Score is {(Math.round((this.state.corrects / this.state.topics.length) * 100)) || 0}</Text>
-              <TouchableOpacity style={ styles.button } onPress={this.startOver}>
-                <Text style={ styles.answer }>Start Over</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-      </View>
+<Text style={ styles.footerText }>
+  {this.state.isEnded
+    ? `Congrats! You have completed in ${this.state.steps} steps.`
+    : `You have tried ${this.state.steps} time(s).`
+  }
+</Text>
+ {this.state.isEnded ?
+   <TouchableOpacity onPress={ this.resetGame } style={ styles.tryAgainButton }>
+     <Text style={ styles.tryAgainButtonText }>Try Again</Text>
+   </TouchableOpacity>
+ : null }
+        </SafeAreaView>
+      </>
     )
   }
 }
 
 const styles = StyleSheet.create({
-  App: {
-    
+  container: {
+    flex: 1,
   },
-  statusBar: {
-    height: 5,
-    backgroundColor: '#FFBA4F',
-    width: '1%',
+  header: {
+    flex: 1,
+    backgroundColor: '#eee',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  topicsContainer: {
-    padding: 20,
+  heading: {
+    fontSize: 32,
+    fontWeight: '600',
+    textAlign: 'center'
   },
-  question: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 20,
+  main: {
+    flex: 3,
+    backgroundColor: 'yellow',
   },
-  button: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#eee',
-    padding: 20,
-    marginBottom: 20,
+  footer: {
+    flex: 1,
+    backgroundColor: '#eee',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  answer: {
-    fontSize: 22,
-    textAlign: 'center',
+  footerText: {
+    fontSize: 20,
+    textAlign: 'center'
   },
-  result: {
-    padding: 20,
-  },
-  resultTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 60,
-  },
-  score: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 20,
-    textAlign: 'center',
-  }
+ gameBoard: {
+   flex: 1,
+   flexDirection: 'row',
+   justifyContent: 'space-evenly',
+   alignItems: 'center',
+   flexWrap: 'wrap',
+   alignContent: 'center',
+   margin: (Dimensions.get('window').width - (48 * 4)) / (4 * 2) - (4 * 2),
+ },
+ button: {
+   backgroundColor: '#ccc',
+   borderRadius: 8,
+   width: 48,
+   height: 48,
+   justifyContent: 'center',
+   alignItems: 'center',
+   margin: (Dimensions.get('window').width - (48 * 4)) / (4 * 2) - (4 * 2),
+ },
+ buttonText: {
+   fontSize: 30,
+ },
+  tryAgainButton: {
+   backgroundColor: '#eee',
+   padding: 8,
+   borderRadius: 8,
+   marginTop: 20,
+ },
+ tryAgainButtonText: {
+   fontSize: 18,
+ },  
 })
 
-export default App;
+export default App 
