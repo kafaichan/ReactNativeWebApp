@@ -8,7 +8,10 @@ import {
   StatusBar,
   Animated,
   Dimensions,
+  Vibration
 } from 'react-native'
+
+var Sound=require('react-native-sound')
 
 class App extends Component {
   state = {
@@ -19,6 +22,10 @@ class App extends Component {
       {}, {}, {}, {}
     ],
     statusBarWidth: new Animated.Value(1),
+      sounds: {
+        correct: null,
+        incorrect: null,
+    },
     topics: [
       {
         question: 'JavaScript 與 Java 有什麼關係？',
@@ -71,6 +78,10 @@ class App extends Component {
       this.setState({
         corrects: this.state.corrects + 1,
       })
+      this.state.sounds.correct.play()
+    }else {
+    	this.state.sounds.incorrect.play()
+    	Vibration.vibrate(500)
     }
 
     this.setState({
@@ -110,6 +121,28 @@ class App extends Component {
     })
   }
 
+componentDidMount() {
+  let correct = new Sound('correct.mp3', Sound.MAIN_BUNDLE, (error) => {
+    if (error) {
+      console.log('failed to load the sound', error);
+      return;
+    }
+  });
+
+  let incorrect = new Sound('incorrect.mp3', Sound.MAIN_BUNDLE, (error) => {
+    if (error) {
+      console.log('failed to load the sound', error);
+      return;
+    }
+  });
+
+  this.setState({
+    sounds: {
+      correct: correct,
+      incorrect: incorrect,
+    }
+  })
+}
   render() {
     const width = this.state.statusBarWidth.interpolate({
       inputRange: [0, 100],
@@ -127,7 +160,7 @@ class App extends Component {
 
               {this.state.topics[this.state.currentIndex].answers.map((answer, index) => {
                 return (
-                  <TouchableOpacity style={ {...styles.button, ...this.state.buttonClass[index]} } onPress={() => this.next(index, answer.correct)}>
+                  <TouchableOpacity key={index} style={ {...styles.button, ...this.state.buttonClass[index]} } onPress={() => this.next(index, answer.correct)}>
                     <Text style={ styles.answer }>{answer.value}</Text>
                   </TouchableOpacity>
                 )
